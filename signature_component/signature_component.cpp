@@ -8,7 +8,7 @@
 
 #include "signature_component.h"
 #include "../Bloc.h"
-#include "uECC.h"
+#include "micro-ecc/uECC.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <string>
