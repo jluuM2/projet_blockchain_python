@@ -4,7 +4,7 @@ LIBS=-lpython3.7m
 
 COMPOSANT = signature_component
 
-CPPFLAGS += -I../transaction_component
+CPPFLAGS += -I../component_hachage
 
 LIBSO = ${COMPOSANT}.so
 LIBSO_OBJS = ${COMPOSANT}.o micro-ecc/uECC.o
