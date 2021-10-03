@@ -3,8 +3,7 @@ from ctypes import RTLD_GLOBAL
 setdlopenflags (RTLD_GLOBAL | 2)
 
 
-from component_Hachage import component_Hachage
-from signature_component import Signature
+from signature_component_bouchon import Signature
 
 print("Cas de test 1:")
 private = "eec2b599b65b98f05093057ebcd04695f203ef42a6ae5db65f52e227d4dc8db5"
