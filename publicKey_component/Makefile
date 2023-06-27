@@ -14,7 +14,7 @@ include ../pybind11.mk
 
 test: $(LIBSO)
 	echo "execution du test"
-	pytest test.py
+	python3 test.py
 
 clean:
 	rm -f ${LIBSO}  ${LIBSO_OBJS}
