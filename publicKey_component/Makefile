@@ -1,5 +1,5 @@
 CPPFLAGS += `python3-config --includes`
-LIBS=`python3-config --ldflags` -lssl -lcrypto
+LIBS=`python3-config --ldflags` -lssl
 
 COMPOSANT = public_key
 

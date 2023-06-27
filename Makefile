@@ -2,4 +2,4 @@
 all: do_component
 
 do_component:
-	cd component && ${MAKE}
+	cd publicKey_component && ${MAKE}
