@@ -35,8 +35,8 @@ std::string recover_public_key(const std::string& signature, const std::string& 
         throw std::runtime_error("Failed to create BIGNUM");
     }
 
-    if (BN_hex2bn(&r, signature_data) == 0 ||
-        BN_hex2bn(&s, signature_data + 64) == 0) {
+ if (BN_hex2bn(&r, reinterpret_cast<const char*>(signature_data)) == 0 ||
+    BN_hex2bn(&s, reinterpret_cast<const char*>(signature_data + 64)) == 0) {
         BN_free(r);
         BN_free(s);
         ECDSA_SIG_free(ecdsa_sig);
