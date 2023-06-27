@@ -1,6 +1,6 @@
 CPPFLAGS += `python3-config --includes`
-LIBS=`python3-config --ldflags`
-LDFLAGS = -lssl -lcrypto
+LIBS=`python3-config --ldflags` -lssl -lcrypto
+LDFLAGS = -L/usr/lib/ssl
 
 COMPOSANT = public_key
 
@@ -23,6 +23,3 @@ clean:
 
 ${DESTINATION_LIBSO}: ${LIBSO}
 	cp $< $@
-
-${LIBSO} : ${LIBSO_OBJS}
-	g++ -o $@ -shared ${LDFLAGS} $^ ${LIBS}
