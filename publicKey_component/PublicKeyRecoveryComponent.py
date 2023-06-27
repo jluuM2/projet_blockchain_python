@@ -28,12 +28,9 @@ class PublicKeyRecoveryComponent:
 
     def recover_public_key(self, message):
         try:
-            # This function can raise a "BadSignatureError" if the signature doesn't match
-            public_key = ecdsa.VerifyingKey.from_public_key_recovery(
-                self.signature, message, self.curve, hashfunc=ecdsa.util.sha256)
-            
-            # If we got here, the signature matched, so return the public key
-            return public_key
+            return ecdsa.VerifyingKey.from_public_key_recovery(
+                self.signature, message, self.curve, hashfunc=ecdsa.util.sha256
+            )
         except ecdsa.keys.BadSignatureError:
             # The signature didn't match
             raise ValueError("Invalid signature")
