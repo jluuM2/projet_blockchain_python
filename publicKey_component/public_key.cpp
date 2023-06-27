@@ -104,7 +104,7 @@ std::string recover_public_key(const std::string& signature, const std::string& 
  * Pybind11 module definition.
  * The module is named "ecdsa_publickey_recovery" and exposes the function recover_public_key to Python.
  */
-PYBIND11_MODULE(ecdsa_publickey_recovery, m) {
+PYBIND11_MODULE(public_key, m) {
     m.doc() = "ECDSA Public Key Recovery module";
     m.def("recover_public_key", &recover_public_key, "Recover ECDSA public key from signature and message");
 }
