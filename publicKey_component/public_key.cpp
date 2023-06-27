@@ -2,7 +2,9 @@
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
-#include <openssl/sha.h>
+#include <openssl/err.h>
+#include <openssl/bn.h>
+#include <openssl/pem.h>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -15,86 +17,87 @@ namespace py = pybind11;
  * @throws std::runtime_error: If the recovery process fails.
  */
 std::string recover_public_key(const std::string& signature, const std::string& message) {
+    const char* signature_data = signature.c_str();
+    const char* message_data = message.c_str();
+
+    // Create an EC_GROUP object for the secp256k1 curve
     EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_secp256k1);
-    if (!group) {
+    if (group == nullptr) {
         throw std::runtime_error("Failed to create EC_GROUP");
     }
 
+    // Create an EC_KEY object
     EC_KEY* eckey = EC_KEY_new();
-    if (!eckey) {
+    if (eckey == nullptr) {
         EC_GROUP_free(group);
         throw std::runtime_error("Failed to create EC_KEY");
     }
 
+    // Set the EC_GROUP for the EC_KEY
     if (EC_KEY_set_group(eckey, group) != 1) {
-        EC_KEY_free(eckey);
         EC_GROUP_free(group);
+        EC_KEY_free(eckey);
         throw std::runtime_error("Failed to set EC_GROUP for EC_KEY");
     }
 
+    // Convert the signature to BIGNUMs
     BIGNUM* r = BN_new();
-    if (!r) {
-        EC_KEY_free(eckey);
-        EC_GROUP_free(group);
-        throw std::runtime_error("Failed to create BIGNUM for r");
-    }
-
     BIGNUM* s = BN_new();
-    if (!s) {
-        BN_free(r);
-        EC_KEY_free(eckey);
+    if (BN_hex2bn(&r, signature_data) == 0 || BN_hex2bn(&s, signature_data + 64) == 0) {
         EC_GROUP_free(group);
-        throw std::runtime_error("Failed to create BIGNUM for s");
-    }
-
-    if (BN_hex2bn(&r, signature.c_str()) == 0 || BN_hex2bn(&s, signature.c_str() + 64) == 0) {
+        EC_KEY_free(eckey);
+        BN_free(r);
         BN_free(s);
-        BN_free(r);
-        EC_KEY_free(eckey);
-        EC_GROUP_free(group);
         throw std::runtime_error("Failed to convert signature to BIGNUMs");
     }
 
+    // Create an ECDSA_SIG object
     ECDSA_SIG* ecdsa_sig = ECDSA_SIG_new();
-    if (!ecdsa_sig) {
-        BN_free(s);
-        BN_free(r);
-        EC_KEY_free(eckey);
+    if (ecdsa_sig == nullptr) {
         EC_GROUP_free(group);
+        EC_KEY_free(eckey);
+        BN_free(r);
+        BN_free(s);
         throw std::runtime_error("Failed to create ECDSA_SIG");
     }
 
+    // Set the r and s values of the ECDSA_SIG
     ECDSA_SIG_set0(ecdsa_sig, r, s);
 
-    if (ECDSA_do_recover_key(eckey, ecdsa_sig) != 1) {
-        ECDSA_SIG_free(ecdsa_sig);
-        BN_free(s);
-        BN_free(r);
-        EC_KEY_free(eckey);
+    // Recover the public key from the ECDSA signature
+    if (ECDSA_do_verify(reinterpret_cast<const unsigned char*>(message_data), message.size(), ecdsa_sig, eckey) != 1) {
         EC_GROUP_free(group);
+        EC_KEY_free(eckey);
+        BN_free(r);
+        BN_free(s);
+        ECDSA_SIG_free(ecdsa_sig);
         throw std::runtime_error("Failed to recover ECDSA public key");
     }
 
+    // Retrieve the ECDSA public key point
     const EC_POINT* pubkey_point = EC_KEY_get0_public_key(eckey);
-    if (!pubkey_point) {
-        ECDSA_SIG_free(ecdsa_sig);
-        BN_free(s);
-        BN_free(r);
-        EC_KEY_free(eckey);
+
+    // Convert the ECDSA public key point to a hexadecimal string
+    char* public_key_hex = EC_POINT_point2hex(group, pubkey_point, POINT_CONVERSION_UNCOMPRESSED, nullptr);
+    if (public_key_hex == nullptr) {
         EC_GROUP_free(group);
+        EC_KEY_free(eckey);
+        BN_free(r);
+        BN_free(s);
+        ECDSA_SIG_free(ecdsa_sig);
         throw std::runtime_error("Failed to retrieve ECDSA public key point");
     }
 
-    std::string public_key_hex;
-    EC_POINT_point2hex(group, pubkey_point, POINT_CONVERSION_UNCOMPRESSED, &public_key_hex, nullptr);
-    
-    ECDSA_SIG_free(ecdsa_sig);
-    BN_free(s);
-    BN_free(r);
-    EC_KEY_free(eckey);
-    EC_GROUP_free(group);
+    std::string public_key(public_key_hex);
+    OPENSSL_free(public_key_hex);
 
-    return public_key_hex;
+    EC_GROUP_free(group);
+    EC_KEY_free(eckey);
+    BN_free(r);
+    BN_free(s);
+    ECDSA_SIG_free(ecdsa_sig);
+
+    return public_key;
 }
 
 /**
