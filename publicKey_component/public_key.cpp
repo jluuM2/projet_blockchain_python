@@ -1,8 +1,7 @@
 #include <iostream>
 #include <stdexcept>
-#include <openssl/ecdsa.h>
-#include <openssl/obj_mac.h>
-#include <openssl/bn.h>
+#include <openssl/evp.h>
+#include <openssl/ec.h>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -15,35 +14,65 @@ namespace py = pybind11;
  * @throws std::runtime_error: If the recovery of the public key fails.
  */
 std::string recover_public_key(const std::string& signature, const std::string& message) {
-    // Setup ECDSA
-    EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_secp256k1);
-    if (!eckey) {
-        throw std::runtime_error("Error setting up ECDSA key");
+    const EVP_MD* md = EVP_get_digestbyname("SHA256");
+    if (!md) {
+        throw std::runtime_error("EVP_get_digestbyname failed, unknown message digest");
     }
 
-    // Prepare the signature
-    // This assumes the signature is passed as a string in hexadecimal format
-    size_t sig_len = signature.length() / 2;
-    unsigned char* sig_bytes = new unsigned char[sig_len];
-    for(size_t i = 0; i < sig_len; i++) {
-        sscanf(signature.c_str() + 2*i, "%02x", &sig_bytes[i]);
+    // Create and initialize a new EVP_PKEY_CTX for the EC key
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
+    if (!ctx) {
+        throw std::runtime_error("EVP_PKEY_CTX_new_id failed");
     }
 
-    // Recover the public key
-    if (1 != ECDSA_verify(0, reinterpret_cast<const unsigned char*>(message.c_str()), message.size(), sig_bytes, sig_len, eckey)) {
-        delete[] sig_bytes;
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to recover public key");
+    // Generate a new EC key
+    if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_keygen(ctx, &pkey) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("EVP_PKEY_keygen failed");
+    }
+    EVP_PKEY_CTX_free(ctx);
+
+    // Create a new signature context for the EC key
+    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    if (!mdctx) {
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("EVP_MD_CTX_new failed");
     }
 
-    // Convert public key to hex string representation
-    const EC_POINT* pub_key = EC_KEY_get0_public_key(eckey);
-    char* pub_key_hex = EC_POINT_point2hex(EC_KEY_get0_group(eckey), pub_key, POINT_CONVERSION_COMPRESSED, NULL);
+    // Initialize the signature context with the EC key and SHA-256 digest
+    if (EVP_DigestSignInit(mdctx, NULL, md, NULL, pkey) <= 0) {
+        EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("EVP_DigestSignInit failed");
+    }
 
-    delete[] sig_bytes;
-    EC_KEY_free(eckey);
+    // Add the message to the signature context
+    if (EVP_DigestSignUpdate(mdctx, message.c_str(), message.size()) <= 0) {
+        EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("EVP_DigestSignUpdate failed");
+    }
 
-    return std::string(pub_key_hex);
+    // Finalize the signature
+    size_t siglen;
+    if (EVP_DigestSignFinal(mdctx, NULL, &siglen) <= 0) {
+        EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("EVP_DigestSignFinal failed");
+    }
+
+    // Verify the signature
+    if (EVP_DigestSignFinal(mdctx, reinterpret_cast<unsigned char*>(&signature[0]), &siglen) <= 0) {
+        EVP_MD_CTX_free(mdctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("EVP_DigestSignFinal failed");
+    }
+
+    // Clean up
+    EVP_MD_CTX_free(mdctx);
+    EVP_PKEY_free(pkey);
+
+    return std::string(signature);
 }
 
 /**
