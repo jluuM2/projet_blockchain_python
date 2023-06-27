@@ -14,7 +14,7 @@ namespace py = pybind11;
  * @returns: The recovered public key.
  * @throws std::runtime_error: If the recovery of the public key fails.
  */
-std::string recover_pub_key_ecdsa(const std::string& signature, const std::string& message) {
+std::string recover_public_key(const std::string& signature, const std::string& message) {
     // Setup ECDSA
     EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_secp256k1);
     if (!eckey) {
