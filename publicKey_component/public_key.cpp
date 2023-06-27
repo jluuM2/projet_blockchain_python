@@ -1,10 +1,8 @@
+
 #include <string>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
-#include <openssl/sha.h>
-#include <pybind11/pybind11.h>
-
 namespace py = pybind11;
 
 /**
@@ -15,77 +13,88 @@ namespace py = pybind11;
  * @throws std::runtime_error: If the recovery process fails.
  */
 std::string recover_public_key(const std::string& signature, const std::string& message) {
-    EC_KEY* eckey = EC_KEY_new_by_curve_name(NID_secp256k1);
-    if (eckey == nullptr) {
+    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_secp256k1);
+    if (!group) {
+        throw std::runtime_error("Failed to create EC_GROUP");
+    }
+
+    EC_KEY* eckey = EC_KEY_new();
+    if (!eckey) {
+        EC_GROUP_free(group);
         throw std::runtime_error("Failed to create EC_KEY");
     }
 
-    const unsigned char* signature_data = reinterpret_cast<const unsigned char*>(signature.c_str());
-    ECDSA_SIG* ecdsa_sig = ECDSA_SIG_new();
-    if (ecdsa_sig == nullptr) {
+    if (EC_KEY_set_group(eckey, group) != 1) {
         EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to create ECDSA_SIG");
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to set EC_GROUP for EC_KEY");
     }
 
     BIGNUM* r = BN_new();
-    BIGNUM* s = BN_new();
-    if (r == nullptr || s == nullptr) {
-        ECDSA_SIG_free(ecdsa_sig);
+    if (!r) {
         EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to create BIGNUM");
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to create BIGNUM for r");
     }
 
- if (BN_hex2bn(&r, reinterpret_cast<const char*>(signature_data)) == 0 ||
-    BN_hex2bn(&s, reinterpret_cast<const char*>(signature_data + 64)) == 0) {
+    BIGNUM* s = BN_new();
+    if (!s) {
         BN_free(r);
-        BN_free(s);
-        ECDSA_SIG_free(ecdsa_sig);
         EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to parse signature components");
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to create BIGNUM for s");
+    }
+
+    if (BN_hex2bn(&r, signature.c_str()) == 0 || BN_hex2bn(&s, signature.c_str() + 64) == 0) {
+        BN_free(s);
+        BN_free(r);
+        EC_KEY_free(eckey);
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to convert signature to BIGNUMs");
+    }
+
+    ECDSA_SIG* ecdsa_sig = ECDSA_SIG_new();
+    if (!ecdsa_sig) {
+        BN_free(s);
+        BN_free(r);
+        EC_KEY_free(eckey);
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to create ECDSA_SIG");
     }
 
     ECDSA_SIG_set0(ecdsa_sig, r, s);
 
-    if (EC_KEY_recover_key(eckey, ecdsa_sig, reinterpret_cast<const unsigned char*>(message.c_str()), message.size()) != 1) {
+    if (ECDSA_do_recover_key(eckey, ecdsa_sig) != 1) {
         ECDSA_SIG_free(ecdsa_sig);
+        BN_free(s);
+        BN_free(r);
         EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to recover public key");
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to recover ECDSA public key");
     }
 
+    const EC_POINT* pubkey_point = EC_KEY_get0_public_key(eckey);
+    if (!pubkey_point) {
+        ECDSA_SIG_free(ecdsa_sig);
+        BN_free(s);
+        BN_free(r);
+        EC_KEY_free(eckey);
+        EC_GROUP_free(group);
+        throw std::runtime_error("Failed to retrieve ECDSA public key point");
+    }
+
+    std::string public_key_hex;
+    EC_POINT_point2hex(group, pubkey_point, POINT_CONVERSION_UNCOMPRESSED, &public_key_hex, nullptr);
+    
     ECDSA_SIG_free(ecdsa_sig);
-
-    const EC_POINT* point = EC_KEY_get0_public_key(eckey);
-    if (point == nullptr) {
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to get EC_POINT from EC_KEY");
-    }
-
-    EC_GROUP* group = EC_GROUP_new_by_curve_name(NID_secp256k1);
-    if (group == nullptr) {
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to create EC_GROUP");
-    }
-
-    size_t point_len = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED, nullptr, 0, nullptr);
-    if (point_len == 0) {
-        EC_KEY_free(eckey);
-        EC_GROUP_free(group);
-        throw std::runtime_error("Failed to compute point length");
-    }
-
-    std::string public_key(point_len, '\0');
-    unsigned char* public_key_data = reinterpret_cast<unsigned char*>(&public_key[0]);
-    if (EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED, public_key_data, point_len, nullptr) != point_len) {
-        EC_KEY_free(eckey);
-        EC_GROUP_free(group);
-        throw std::runtime_error("Failed to convert point to octet string");
-    }
-
+    BN_free(s);
+    BN_free(r);
     EC_KEY_free(eckey);
     EC_GROUP_free(group);
 
-    return public_key;
+    return public_key_hex;
 }
+
 
 /**
  * Pybind11 module definition.
