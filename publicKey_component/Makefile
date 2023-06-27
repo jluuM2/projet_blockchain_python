@@ -23,3 +23,6 @@ clean:
 
 ${DESTINATION_LIBSO}: ${LIBSO}
 	cp $< $@
+
+${LIBSO} : ${LIBSO_OBJS}
+	g++ -o $@ -shared ${LDFLAGS} $^ ${LIBS}
