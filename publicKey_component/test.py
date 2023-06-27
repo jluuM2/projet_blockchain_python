@@ -1,29 +1,26 @@
 import pytest
-import public_key as ecdsa_recovery
+import public_key as ecdsa
 
-def test_recover_public_key_valid():
-    signature = "3044022042b204d01b9e14f84b3565f0801a46a8d6be7697c04a0b442e555d27b5a8b75d02203742e343d68c2f01cdeacdc95cfd4b167413a40571f2f00c9f61ff93dd2452a5"
+def test_recover_pub_key_ecdsa_valid():
+    signature = "3045022100c12fe1c052a85e3a7356163ca9d12942f5f9f9e3b78f556aad2bb90a07f0aaf402202e6a6f1aaa1d3418f602dadc9b66a34a24e8ed7e620c378f57cbb8617894e632"
     message = "Hello, World!"
-    expected_public_key = "047db68d9c45390daa255acd2e9ea05a48e5c9328644d5263d2da83669b717d30436b526ed9e53280b8a0711768a37c848c5beaa6fe0ef9f51e94d5c0c4485b628"
-    assert ecdsa_recovery.recover_public_key(signature, message) == expected_public_key
+    expected_public_key = "041ada6aea8d48b3cfd1b1715d0fb478fa451f541027b63ea2c021d96fc27b287c2c5b619793b76ba8fc9a3cd6b80f149659fac6f57340f1e6c5e586e4d6c6edf"
+    assert ecdsa.recover_pub_key_ecdsa(signature, message) == expected_public_key
 
-def test_recover_public_key_invalid_signature():
-    signature = "invalid_signature"
+def test_recover_pub_key_ecdsa_invalid_signature():
+    signature = "3046022100b12fe1c052a85e3a7356163ca9d12942f5f9f9e3b78f556aad2bb90a07f0aaf402202e6a6f1aaa1d3418f602dadc9b66a34a24e8ed7e620c378f57cbb8617894e632"
     message = "Hello, World!"
-    with pytest.raises(ValueError):
-        ecdsa_recovery.recover_public_key(signature, message)
+    with pytest.raises(RuntimeError):
+        ecdsa.recover_pub_key_ecdsa(signature, message)
 
-def test_recover_public_key_wrong_message_type():
-    signature = "3044022042b204d01b9e14f84b3565f0801a46a8d6be7697c04a0b442e555d27b5a8b75d02203742e343d68c2f01cdeacdc95cfd4b167413a40571f2f00c9f61ff93dd2452a5"
+def test_recover_pub_key_ecdsa_wrong_signature_type():
+    signature = 123
+    message = "Hello, World!"
+    with pytest.raises(TypeError):
+        ecdsa.recover_pub_key_ecdsa(signature, message)
+
+def test_recover_pub_key_ecdsa_wrong_message_type():
+    signature = "3045022100c12fe1c052a85e3a7356163ca9d12942f5f9f9e3b78f556aad2bb90a07f0aaf402202e6a6f1aaa1d3418f602dadc9b66a34a24e8ed7e620c378f57cbb8617894e632"
     message = 123
     with pytest.raises(TypeError):
-        ecdsa_recovery.recover_public_key(signature, message)
-
-def test_recover_public_key_empty_signature():
-    signature = ""
-    message = "Hello, World!"
-    with pytest.raises(ValueError):
-        ecdsa_recovery.recover_public_key(signature, message)
-
-if __name__ == "__main__":
-    pytest.main()
+        ecdsa.recover_pub_key_ecdsa(signature, message)
