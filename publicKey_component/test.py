@@ -1,11 +1,29 @@
 import pytest
+import hashlib
+import binascii
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 import public_key as ecdsa
 
 def test_recover_pub_key_ecdsa_valid():
-    signature = "3045022100c12fe1c052a85e3a7356163ca9d12942f5f9f9e3b78f556aad2bb90a07f0aaf402202e6a6f1aaa1d3418f602dadc9b66a34a24e8ed7e620c378f57cbb8617894e632"
+    # Generate private key
+    private_key = ec.generate_private_key(ec.SECP256K1())
+    # Extract public key
+    public_key = private_key.public_key()
+    public_key_bytes = public_key.public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+    # Convert public key to hex string representation
+    expected_public_key = binascii.hexlify(public_key_bytes).decode()
+    # Create a message to sign
     message = "Hello, World!"
-    expected_public_key = "041ada6aea8d48b3cfd1b1715d0fb478fa451f541027b63ea2c021d96fc27b287c2c5b619793b76ba8fc9a3cd6b80f149659fac6f57340f1e6c5e586e4d6c6edf"
-    assert ecdsa.recover_public_key(signature, message) == expected_public_key
+    # Sign the message
+    signature = private_key.sign(message.encode(), ec.ECDSA(hashes.SHA256()))
+    # Convert the signature to hex string representation
+    r, s = decode_dss_signature(signature)
+    signature_hex = '%064x%064x' % (r, s)
+    # Test recover_pub_key_ecdsa
+    assert ecdsa.recover_pub_key_ecdsa(signature_hex, message) == expected_public_key
 
 def test_recover_pub_key_ecdsa_invalid_signature():
     signature = "3046022100b12fe1c052a85e3a7356163ca9d12942f5f9f9e3b78f556aad2bb90a07f0aaf402202e6a6f1aaa1d3418f602dadc9b66a34a24e8ed7e620c378f57cbb8617894e632"
