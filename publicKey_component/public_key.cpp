@@ -1,8 +1,10 @@
-
 #include <string>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
+#include <openssl/sha.h>
+#include <pybind11/pybind11.h>
+
 namespace py = pybind11;
 
 /**
@@ -94,7 +96,6 @@ std::string recover_public_key(const std::string& signature, const std::string& 
 
     return public_key_hex;
 }
-
 
 /**
  * Pybind11 module definition.
