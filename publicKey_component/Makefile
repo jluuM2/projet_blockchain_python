@@ -1,7 +1,7 @@
 CPPFLAGS += `python3-config --includes`
-LIBS=`python3-config --ldflags`
+LIBS=`python3-config --ldflags` -lssl -lcrypto
 
-COMPOSANT = crypto_component
+COMPOSANT = public_key
 
 LIBSO = ${COMPOSANT}.so
 LIBSO_OBJS = ${COMPOSANT}.o
@@ -14,7 +14,7 @@ include ../pybind11.mk
 
 test: $(LIBSO)
 	echo "execution du test"
-	python3 test.py
+	pytest test.py
 
 clean:
 	rm -f ${LIBSO}  ${LIBSO_OBJS}

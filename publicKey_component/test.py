@@ -1,41 +1,29 @@
-import ecdsa
-import base64
-import json
-from ecdsa.util import sigencode_string
-from PublicKeyRecoveryComponent import PublicKeyRecoveryComponent
+import pytest
+import public_key as ecdsa_recovery
 
-def test_component():
-    # Generate a key pair for testing
-    private_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-    public_key = private_key.get_verifying_key()
+def test_recover_public_key_valid():
+    signature = "3044022042b204d01b9e14f84b3565f0801a46a8d6be7697c04a0b442e555d27b5a8b75d02203742e343d68c2f01cdeacdc95cfd4b167413a40571f2f00c9f61ff93dd2452a5"
+    message = "Hello, World!"
+    expected_public_key = "047db68d9c45390daa255acd2e9ea05a48e5c9328644d5263d2da83669b717d30436b526ed9e53280b8a0711768a37c848c5beaa6fe0ef9f51e94d5c0c4485b628"
+    assert ecdsa_recovery.recover_public_key(signature, message) == expected_public_key
 
-    # Sign a message
-    message = b"test message"
-    signature = private_key.sign(message, sigencode=sigencode_string)
+def test_recover_public_key_invalid_signature():
+    signature = "invalid_signature"
+    message = "Hello, World!"
+    with pytest.raises(ValueError):
+        ecdsa_recovery.recover_public_key(signature, message)
 
-    # Encode the signature in base64 and wrap it in a JSON string
-    signature_base64 = base64.b64encode(signature).decode()
-    signature_json = json.dumps({"signature": signature_base64})
+def test_recover_public_key_wrong_message_type():
+    signature = "3044022042b204d01b9e14f84b3565f0801a46a8d6be7697c04a0b442e555d27b5a8b75d02203742e343d68c2f01cdeacdc95cfd4b167413a40571f2f00c9f61ff93dd2452a5"
+    message = 123
+    with pytest.raises(TypeError):
+        ecdsa_recovery.recover_public_key(signature, message)
 
-    # Create a PublicKeyRecoveryComponent instance
-    recovery_component = PublicKeyRecoveryComponent(ecdsa.SECP256k1)
-
-    # Test the take_signature method
-    recovery_component.take_signature(signature_json)
-    print("take_signature passed")
-
-    # Test the validate_signature_format method
-    assert recovery_component.validate_signature_format()
-    print("validate_signature_format passed")
-
-    # Test the recover_public_key method
-    recovered_public_keys = recovery_component.recover_public_key(message)
-
-    # Check if one of the recovered keys match the original
-    assert any(key.to_string() == public_key.to_string() for key in recovered_public_keys)
-    print("recover_public_key passed")
-
-    print("All tests passed")
+def test_recover_public_key_empty_signature():
+    signature = ""
+    message = "Hello, World!"
+    with pytest.raises(ValueError):
+        ecdsa_recovery.recover_public_key(signature, message)
 
 if __name__ == "__main__":
-    test_component()
+    pytest.main()
