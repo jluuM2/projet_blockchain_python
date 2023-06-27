@@ -25,6 +25,9 @@ def test_component():
     # Test the recover_public_key method
     recovered_public_keys = recovery_component.recover_public_key(message)
 
+    # Check if one of the recovered keys match the original
+    assert any(key.to_string() == public_key.to_string() for key in recovered_public_keys)
+    print("recover_public_key passed")
 
     print("All tests passed")
 
