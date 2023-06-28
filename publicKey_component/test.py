@@ -11,6 +11,7 @@ def test_recover_pub_key_ecdsa_valid():
     print(public_key)
     print("--------------------")
     print(ecdsa.recover_public_key(signature, message))
+    print("********************")
     # assert ecdsa.recover_public_key(signature, message) == public_key
 
 def test_recover_pub_key_ecdsa_invalid_signature():

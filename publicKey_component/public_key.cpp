@@ -1,11 +1,9 @@
-#include <iostream>
 #include <stdexcept>
+#include <string>
+#include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
-#include <openssl/bn.h>
 #include <pybind11/pybind11.h>
-
-namespace py = pybind11;
 
 /**
  * Recovers a public key from a signed message using ECDSA.
@@ -22,15 +20,28 @@ std::string recover_public_key(const std::string& signature, const std::string& 
     }
 
     // Prepare the signature
-    // This assumes the signature is passed as a string in hexadecimal format
     size_t sig_len = signature.length() / 2;
     unsigned char* sig_bytes = new unsigned char[sig_len];
     for(size_t i = 0; i < sig_len; i++) {
         sscanf(signature.c_str() + 2*i, "%02x", &sig_bytes[i]);
     }
 
-    // Recover the public key
-    if (1 != ECDSA_verify(0, reinterpret_cast<const unsigned char*>(message.c_str()), message.size(), sig_bytes, sig_len, eckey)) {
+    // Create an ECDSA_SIG object from the byte array
+    const unsigned char* p = sig_bytes;
+    ECDSA_SIG* sig = d2i_ECDSA_SIG(NULL, &p, sig_len);
+    if (!sig) {
+        delete[] sig_bytes;
+        EC_KEY_free(eckey);
+        throw std::runtime_error("Failed to create ECDSA_SIG");
+    }
+
+    // Verify the signature and recover the public key
+    int ret = ECDSA_do_verify(reinterpret_cast<const unsigned char*>(message.c_str()), message.size(), sig, eckey);
+
+    // Free the ECDSA_SIG object now that we're done with it
+    ECDSA_SIG_free(sig);
+
+    if (1 != ret) {
         delete[] sig_bytes;
         EC_KEY_free(eckey);
         throw std::runtime_error("Failed to recover public key");
@@ -48,7 +59,7 @@ std::string recover_public_key(const std::string& signature, const std::string& 
 
 /**
  * Pybind11 module definition.
- * The module is named "ecdsa_publickey_recovery" and exposes the function recover_public_key to Python.
+ * The module is named "public_key" and exposes the function recover_public_key to Python.
  */
 PYBIND11_MODULE(public_key, m) {
     m.doc() = "ECDSA Public Key Recovery module";
