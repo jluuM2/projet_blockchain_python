@@ -45,6 +45,26 @@ Ce code inclut également une définition de module Pybind11, permettant d'expos
 
 ```python
 import public_key
-
+```
 recovered_key = public_key.recover_public_key(signature, message)
 La fonction `recover_public_key` peut être appelée depuis Python en fournissant les arguments `signature` et `message`, et elle renverra la clé publique récupérée.
+
+## Lancement du projet
+```bash
+openssl ecparam -genkey -name secp256k1 -noout -out private.pem
+
+openssl ec -in private.pem -pubout -out public.pem
+
+echo "Hello, World!" > message.txt
+
+openssl dgst -sha256 -sign private.pem -out signature.der message.txt
+
+openssl dgst -sha256 -verify public.pem -signature signature.der message.txt
+
+xxd -p -c 256 signature.der > signature.hex
+
+xxd -p -c 256 public.pem > public.hex
+
+make
+bash
+Copy code
