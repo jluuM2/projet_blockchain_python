@@ -9,6 +9,7 @@ def test_recover_pub_key_ecdsa_valid():
     
     message = "Hello, World!"
     print(public_key)
+    print("--------------------")
     print(ecdsa.recover_public_key(signature, message))
     # assert ecdsa.recover_public_key(signature, message) == public_key
 
