@@ -29,10 +29,13 @@ La fonction renvoie la clé publique récupérée sous forme de chaîne de carac
 **Exceptions**
 La fonction peut générer une exception `std::invalid_argument` si la longueur de la signature est invalide ou si le format de la signature est invalide. Elle peut également générer une exception `std::runtime_error` si la récupération de la clé publique échoue.
 
-**Module Pybind11 : public_key**
-Ce code inclut également une définition de module Pybind11, permettant d'exposer la fonction `recover_public_key` à Python. Le module est nommé "public_key".
+**Utilisation en Python**
+```python
+import public_key
+recovered_key = public_key.recover_public_key(signature)
+```
 
-** Handling the Absence of '0x' in Signature**
+## Handling the Absence of '0x' in Signature
 
 In Ethereum and many other blockchain networks, hexadecimal values are often prefixed with '0x'. However, in some cases, the signature we receive might not start with '0x'. Our function `recover_public_key` needs to correctly handle such scenarios. 
 
@@ -41,12 +44,6 @@ In Ethereum and many other blockchain networks, hexadecimal values are often pre
 if (signature.substr(0, 2) == "0x") {
     signature = signature.substr(2);
 }
-
-**Utilisation en Python**
-```python
-import public_key
-recovered_key = public_key.recover_public_key(signature)
-```
 
 La fonction `recover_public_key` peut être appelée depuis Python en fournissant l'argument `signature`, et elle renverra la clé publique récupérée.
 
