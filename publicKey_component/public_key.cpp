@@ -2,7 +2,6 @@
 #include <string>
 #include <pybind11/pybind11.h>
 #include <stdio.h>
-#include <stdexcept>
 #include <string>
 #include <secp256k1_recovery.h>
 
