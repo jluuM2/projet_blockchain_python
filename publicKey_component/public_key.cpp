@@ -12,50 +12,63 @@
  * @returns: The recovered public key.
  * @throws std::runtime_error: If the recovery of the public key fails.
  */
-std::string recover_public_key(const std::string& signature, const std::string& message) {
-    // Setup ECDSA
-    EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_secp256k1);
-    if (!eckey) {
-        throw std::runtime_error("Error setting up ECDSA key");
+#include "uECC.h"
+#include <stdio.h>
+#include <stdexcept>
+#include <string>
+
+std::string recover_public_key(const std::string& signature_hex, const std::string& message_hex) {
+    // Verify that the signature and message are in hexadecimal format
+    if (signature_hex.empty() || signature_hex.substr(0, 2) != "0x" ||
+        message_hex.empty() || message_hex.substr(0, 2) != "0x") {
+        throw std::invalid_argument("The signature and message must be in hexadecimal format (e.g., '0x1a2b3c...', '0x4d657373616765')");
     }
 
-    // Prepare the signature
-    size_t sig_len = signature.length() / 2;
-    unsigned char* sig_bytes = new unsigned char[sig_len];
-    for(size_t i = 0; i < sig_len; i++) {
-        sscanf(signature.c_str() + 2*i, "%02x", &sig_bytes[i]);
+    // Convert the signature and message from hexadecimal to binary
+    size_t signature_size = (signature_hex.size() - 2) / 2;
+    size_t message_size = (message_hex.size() - 2) / 2;
+    uint8_t signature[uECC_BYTES * 2];
+    uint8_t message[uECC_BYTES * 2];
+    for (size_t i = 0; i < signature_size; ++i) {
+        std::string byte_string = signature_hex.substr(i * 2 + 2, 2);
+        signature[i] = static_cast<uint8_t>(std::stoi(byte_string, nullptr, 16));
+    }
+    for (size_t i = 0; i < message_size; ++i) {
+        std::string byte_string = message_hex.substr(i * 2 + 2, 2);
+        message[i] = static_cast<uint8_t>(std::stoi(byte_string, nullptr, 16));
     }
 
-    // Create an ECDSA_SIG object from the byte array
-    const unsigned char* p = sig_bytes;
-    ECDSA_SIG* sig = d2i_ECDSA_SIG(NULL, &p, sig_len);
-    if (!sig) {
-        delete[] sig_bytes;
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to create ECDSA_SIG");
+    // Iterate through possible public keys and verify the signature
+    std::string public_key_hex;
+    for (size_t i = 0; i < uECC_CURVE_COUNT; ++i) {
+        const struct uECC_Curve_t* curve = uECC_get_curve_by_index(i);
+        uint8_t public_key[uECC_BYTES * 2];
+        
+        // Compute the public key for the current curve
+        if (!uECC_compute_public_key(signature, message, message_size, public_key, curve)) {
+            continue; // Invalid public key for this curve, try the next one
+        }
+
+        // Verify if the computed public key produces the given signature
+        if (uECC_verify(public_key, message, message_size, signature, curve)) {
+            // Convert the public key from binary to hexadecimal
+            public_key_hex.clear();
+            for (size_t j = 0; j < uECC_BYTES * 2; ++j) {
+                char byte_string[3];
+                sprintf(byte_string, "%02x", public_key[j]);
+                public_key_hex += byte_string;
+            }
+            break; // Found a valid public key, exit the loop
+        }
     }
 
-    // Verify the signature and recover the public key
-    int ret = ECDSA_do_verify(reinterpret_cast<const unsigned char*>(message.c_str()), message.size(), sig, eckey);
-
-    // Free the ECDSA_SIG object now that we're done with it
-    ECDSA_SIG_free(sig);
-
-    if (1 != ret) {
-        delete[] sig_bytes;
-        EC_KEY_free(eckey);
+    if (public_key_hex.empty()) {
         throw std::runtime_error("Failed to recover public key");
     }
 
-    // Convert public key to hex string representation
-    const EC_POINT* pub_key = EC_KEY_get0_public_key(eckey);
-    char* pub_key_hex = EC_POINT_point2hex(EC_KEY_get0_group(eckey), pub_key, POINT_CONVERSION_COMPRESSED, NULL);
-
-    delete[] sig_bytes;
-    EC_KEY_free(eckey);
-
-    return std::string(pub_key_hex);
+    return public_key_hex;
 }
+
 
 /**
  * Pybind11 module definition.
