@@ -32,6 +32,16 @@ La fonction peut générer une exception `std::invalid_argument` si la longueur 
 **Module Pybind11 : public_key**
 Ce code inclut également une définition de module Pybind11, permettant d'exposer la fonction `recover_public_key` à Python. Le module est nommé "public_key".
 
+** Handling the Absence of '0x' in Signature**
+
+In Ethereum and many other blockchain networks, hexadecimal values are often prefixed with '0x'. However, in some cases, the signature we receive might not start with '0x'. Our function `recover_public_key` needs to correctly handle such scenarios. 
+
+```cpp
+// Check if the signature starts with '0x' and remove it
+if (signature.substr(0, 2) == "0x") {
+    signature = signature.substr(2);
+}
+
 **Utilisation en Python**
 ```python
 import public_key
