@@ -35,7 +35,7 @@ import public_key
 recovered_key = public_key.recover_public_key(signature)
 ```
 
-## Handling the Absence of '0x' in Signature
+**Handling the Absence of '0x' in Signature**
 
 In Ethereum and many other blockchain networks, hexadecimal values are often prefixed with '0x'. However, in some cases, the signature we receive might not start with '0x'. Our function `recover_public_key` needs to correctly handle such scenarios. 
 
@@ -44,7 +44,7 @@ In Ethereum and many other blockchain networks, hexadecimal values are often pre
 if (signature.substr(0, 2) == "0x") {
     signature = signature.substr(2);
 }
-
+```
 La fonction `recover_public_key` peut être appelée depuis Python en fournissant l'argument `signature`, et elle renverra la clé publique récupérée.
 
 ## Lancement du projet
