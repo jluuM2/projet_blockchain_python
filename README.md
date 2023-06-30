@@ -35,9 +35,9 @@ import public_key
 recovered_key = public_key.recover_public_key(signature)
 ```
 
-**Handling the Absence of '0x' in Signature**
+**Gestion de l'absence de '0x' dans la signature**
 
-In Ethereum and many other blockchain networks, hexadecimal values are often prefixed with '0x'. However, in some cases, the signature we receive might not start with '0x'. Our function `recover_public_key` needs to correctly handle such scenarios. 
+Dans Ethereum et de nombreux autres réseaux de blockchain, les valeurs hexadécimales sont souvent préfixées par " 0x ". Cependant, dans certains cas, la signature que nous recevons peut ne pas commencer par '0x'. Notre fonction `recover_public_key` doit gérer correctement de tels scénarios. 
 
 ```cpp
 // Check if the signature starts with '0x' and remove it
